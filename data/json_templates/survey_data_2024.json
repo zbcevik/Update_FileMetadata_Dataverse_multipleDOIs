@@ -1,0 +1,43 @@
+{
+  "datasetPersistentId": "doi:10.5061/dryad.example3",
+  "datasetName": "Survey Results - Consumer Preferences 2024",
+  "dataset": {
+    "version": 1,
+    "releaseTime": "2024-03-10T09:15:00Z"
+  },
+  "data": [
+    {
+      "id": "file_008",
+      "label": "survey_responses.csv",
+      "description": "Raw survey responses from 5000 participants",
+      "directoryLabel": "raw_data",
+      "filesize": 3145728,
+      "dataType": "Text"
+    },
+    {
+      "id": "file_009",
+      "label": "demographics.xlsx",
+      "description": "Demographic breakdown of survey participants",
+      "directoryLabel": "processed_data",
+      "filesize": 786432,
+      "dataType": "Spreadsheet"
+    },
+    {
+      "id": "file_010",
+      "label": "statistical_analysis.R",
+      "description": "R script for statistical analysis and visualization",
+      "directoryLabel": "scripts",
+      "filesize": 262144,
+      "dataType": "Text"
+    },
+    {
+      "id": "file_011",
+      "label": "key_findings_report.pdf",
+      "description": "Executive summary of key findings",
+      "directoryLabel": "reports",
+      "filesize": 1572864,
+      "dataType": "Document"
+    }
+  ],
+  "lastUpdated": "2024-03-10T09:15:00Z"
+}

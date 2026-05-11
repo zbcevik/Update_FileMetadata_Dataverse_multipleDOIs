@@ -1,0 +1,35 @@
+{
+  "datasetPersistentId": "doi:10.5061/dryad.example1",
+  "datasetName": "Climate Data 2024 - North America",
+  "dataset": {
+    "version": 1,
+    "releaseTime": "2024-01-15T10:00:00Z"
+  },
+  "data": [
+    {
+      "id": "file_001",
+      "label": "temperature_data.csv",
+      "description": "Monthly average temperature data for North American cities",
+      "directoryLabel": "raw_data",
+      "filesize": 2048576,
+      "dataType": "Text"
+    },
+    {
+      "id": "file_002",
+      "label": "precipitation_analysis.xlsx",
+      "description": "Precipitation patterns and statistical analysis",
+      "directoryLabel": "processed_data",
+      "filesize": 5242880,
+      "dataType": "Spreadsheet"
+    },
+    {
+      "id": "file_003",
+      "label": "methodology.pdf",
+      "description": "Detailed methodology for data collection and processing",
+      "directoryLabel": "documentation",
+      "filesize": 1048576,
+      "dataType": "Document"
+    }
+  ],
+  "lastUpdated": "2024-01-15T10:00:00Z"
+}

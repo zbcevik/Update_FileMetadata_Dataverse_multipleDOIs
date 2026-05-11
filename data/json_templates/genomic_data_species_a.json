@@ -1,0 +1,43 @@
+{
+  "datasetPersistentId": "doi:10.5061/dryad.example2",
+  "datasetName": "Genomic Sequencing Dataset - Species A",
+  "dataset": {
+    "version": 1,
+    "releaseTime": "2024-02-20T14:30:00Z"
+  },
+  "data": [
+    {
+      "id": "file_004",
+      "label": "sequence_reads_R1.fastq.gz",
+      "description": "Forward reads from Illumina sequencing",
+      "directoryLabel": "raw_sequences",
+      "filesize": 10737418240,
+      "dataType": "Sequence"
+    },
+    {
+      "id": "file_005",
+      "label": "sequence_reads_R2.fastq.gz",
+      "description": "Reverse reads from Illumina sequencing",
+      "directoryLabel": "raw_sequences",
+      "filesize": 10737418240,
+      "dataType": "Sequence"
+    },
+    {
+      "id": "file_006",
+      "label": "assembly_summary.txt",
+      "description": "Summary of genome assembly statistics",
+      "directoryLabel": "results",
+      "filesize": 524288,
+      "dataType": "Text"
+    },
+    {
+      "id": "file_007",
+      "label": "quality_report.html",
+      "description": "Quality assessment and visualization report",
+      "directoryLabel": "results",
+      "filesize": 2097152,
+      "dataType": "Document"
+    }
+  ],
+  "lastUpdated": "2024-02-20T14:30:00Z"
+}
