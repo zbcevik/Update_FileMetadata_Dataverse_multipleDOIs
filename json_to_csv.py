@@ -14,6 +14,70 @@ from utils import (
 )
 
 
+def extract_doi(json_data: Dict[str, Any]) -> str:
+    """Extract a DOI from common Dataverse JSON field names."""
+    if "datasetPersistentId" in json_data and json_data["datasetPersistentId"]:
+        return json_data["datasetPersistentId"]
+    if "datasetVersion" in json_data and isinstance(json_data["datasetVersion"], dict):
+        doi = json_data["datasetVersion"].get("datasetPersistentId", "")
+        if doi:
+            return doi
+    if "persistentUrl" in json_data and json_data["persistentUrl"]:
+        return json_data["persistentUrl"]
+    if "identifier" in json_data and json_data["identifier"]:
+        return json_data["identifier"]
+    return ""
+
+
+def extract_title_from_citation(json_data: Dict[str, Any]) -> str:
+    """Extract dataset title from nested citation metadata."""
+    if "datasetName" in json_data and json_data["datasetName"]:
+        return json_data["datasetName"]
+
+    if "title" in json_data and json_data["title"]:
+        return json_data["title"]
+
+    dataset_version = json_data.get("datasetVersion")
+    if isinstance(dataset_version, dict):
+        citation = dataset_version.get("metadataBlocks", {}).get("citation", {})
+        fields = citation.get("fields") or []
+        for field in fields:
+            if field.get("typeName") == "title":
+                value = field.get("value")
+                if isinstance(value, str):
+                    return value
+                if isinstance(value, dict):
+                    return value.get("value", "")
+                if isinstance(value, list) and value:
+                    first = value[0]
+                    if isinstance(first, dict):
+                        return first.get("value", "")
+                    return str(first)
+    return "Unknown Dataset"
+
+
+def extract_files(json_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Return file entries from either modern Dataverse or legacy JSON formats."""
+    if "data" in json_data and isinstance(json_data["data"], list):
+        return json_data["data"]
+    if "files" in json_data and isinstance(json_data["files"], list):
+        return json_data["files"]
+    return []
+
+
+def get_file_info(file_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize file metadata from both `data` and `files` JSON structures."""
+    data_file = file_info.get("dataFile") if isinstance(file_info.get("dataFile"), dict) else file_info
+    return {
+        "id": data_file.get("id", ""),
+        "label": file_info.get("label", "") or data_file.get("filename", ""),
+        "description": file_info.get("description", ""),
+        "directoryLabel": file_info.get("directoryLabel", ""),
+        "filesize": data_file.get("filesize", ""),
+        "dataType": data_file.get("dataType", data_file.get("contentType", ""))
+    }
+
+
 def json_to_csv_converter(json_files: List[str], output_csv: str, dataset_names: Dict[str, str] = None) -> None:
     """
     Convert multiple JSON files to a single CSV file
@@ -32,29 +96,29 @@ def json_to_csv_converter(json_files: List[str], output_csv: str, dataset_names:
             json_data = load_json_file(json_file)
             
             # Extract DOI
-            doi = json_data.get("datasetPersistentId", "")
+            doi = extract_doi(json_data)
             if not doi:
                 print(f"  Warning: No DOI found in {json_file}")
                 continue
             
             # Get dataset name
-            dataset_name = (dataset_names.get(doi) or 
-                           json_data.get("datasetName", "Unknown Dataset"))
+            dataset_name = dataset_names.get(doi) or extract_title_from_citation(json_data)
             
             # Extract file information
-            files = json_data.get("data", [])
+            files = extract_files(json_data)
             
             for file_info in files:
+                normalized = get_file_info(file_info)
                 row = {
                     "DOI": doi,
                     "dataset_name": dataset_name,
-                    "file_id": file_info.get("id", ""),
-                    "file_label": file_info.get("label", ""),
-                    "file_description": file_info.get("description", ""),
-                    "file_path": file_info.get("directoryLabel", ""),
-                    "file_size": str(file_info.get("filesize", "")),
-                    "file_type": file_info.get("dataType", ""),
-                    "original_description": file_info.get("description", ""),
+                    "file_id": normalized.get("id", ""),
+                    "file_label": normalized.get("label", ""),
+                    "file_description": normalized.get("description", ""),
+                    "file_path": normalized.get("directoryLabel", ""),
+                    "file_size": str(normalized.get("filesize", "")),
+                    "file_type": normalized.get("dataType", ""),
+                    "original_description": normalized.get("description", ""),
                     "new_description": "",
                     "new_file_path": "",
                     "status": "pending"
