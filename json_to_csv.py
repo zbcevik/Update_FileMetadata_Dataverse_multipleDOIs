@@ -58,6 +58,13 @@ def extract_title_from_citation(json_data: Dict[str, Any]) -> str:
 
 def extract_files(json_data: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Return file entries from either modern Dataverse or legacy JSON formats."""
+    # Check datasetVersion.files first (nested structure from Dataverse API)
+    if "datasetVersion" in json_data and isinstance(json_data["datasetVersion"], dict):
+        dataset_version = json_data["datasetVersion"]
+        if "files" in dataset_version and isinstance(dataset_version["files"], list):
+            return dataset_version["files"]
+    
+    # Check top-level data/files
     if "data" in json_data and isinstance(json_data["data"], list):
         return json_data["data"]
     if "files" in json_data and isinstance(json_data["files"], list):
