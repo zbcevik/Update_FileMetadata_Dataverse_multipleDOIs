@@ -95,12 +95,12 @@ class DataverseAPI:
         
         Args:
             file_id: File ID
-            metadata: Dictionary with metadata to update (e.g., {"description": "new description"})
+            metadata: Dictionary with metadata to update (e.g., {"description": "new description", "directoryLabel": "path"})
             
         Returns:
             Tuple of (success, response)
         """
-        return self._make_request("PUT", f"/files/{file_id}/metadata", json_data=metadata)
+        return self._make_request("POST", f"/files/{file_id}", data=metadata)
     
     def get_dataset_files(self, dataset_id: str) -> Tuple[bool, List[Dict]]:
         """
