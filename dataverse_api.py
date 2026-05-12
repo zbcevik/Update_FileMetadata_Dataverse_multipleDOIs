@@ -100,7 +100,7 @@ class DataverseAPI:
         Returns:
             Tuple of (success, response)
         """
-        return self._make_request("POST", f"/files/{file_id}", data=metadata)
+        return self._make_request("POST", f"/files/{file_id}/metadata", data=metadata)
     
     def get_dataset_files(self, dataset_id: str) -> Tuple[bool, List[Dict]]:
         """
