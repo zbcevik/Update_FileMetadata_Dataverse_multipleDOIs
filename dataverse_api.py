@@ -45,27 +45,15 @@ class DataverseAPI:
         """
         url = f"{self.server_url}/api/v1{endpoint}"
         
-        # Prepare headers based on request type
-        request_headers = self.headers.copy()
-        if data and not json_data:
-            # For form data requests, don't specify Accept as JSON
-            request_headers.pop("Accept", None)
-        
         try:
             if method == "GET":
-                response = requests.get(url, headers=request_headers)
+                response = requests.get(url, headers=self.headers)
             elif method == "POST":
-                if json_data:
-                    response = requests.post(url, headers=request_headers, json=json_data)
-                else:
-                    response = requests.post(url, headers=request_headers, data=data)
+                response = requests.post(url, headers=self.headers, data=data, json=json_data)
             elif method == "PUT":
-                if json_data:
-                    response = requests.put(url, headers=request_headers, json=json_data)
-                else:
-                    response = requests.put(url, headers=request_headers, data=data)
+                response = requests.put(url, headers=self.headers, data=data, json=json_data)
             elif method == "DELETE":
-                response = requests.delete(url, headers=request_headers)
+                response = requests.delete(url, headers=self.headers)
             else:
                 return False, f"Unsupported method: {method}"
             
