@@ -5,12 +5,19 @@ A comprehensive solution for managing and updating file metadata across multiple
 ## Features
 
 ✨ **Multi-Dataset Support**: Handle multiple datasets with different DOIs in a single workflow
+
 📊 **CSV-Based Updates**: Edit metadata in a familiar spreadsheet format
+
 🔄 **Bidirectional Conversion**: Convert between JSON and CSV formats seamlessly
+
 🚀 **Bulk Operations**: Update metadata for multiple files across datasets at once
+
 🔐 **API Integration**: Direct integration with Dataverse API for secure updates
+
 📋 **Dry-Run Mode**: Preview changes before applying them to your datasets
+
 📦 **Template System**: Work with JSON templates organized in convenient folder structure
+
 🎯 **Tracking**: Track update status and changes for each file
 
 ## Project Structure
@@ -71,11 +78,10 @@ This creates a CSV with columns:
 - `file_description` - Current description
 - `file_path` - Current directory path
 - `file_size` - File size in bytes
-- `file_type` - Data type
 - `original_description` - Original description (for reference)
 - `new_description` - Update this column with new description
 - `new_file_path` - Update this column with new file path
-- `status` - Track update status
+- `status` - Track update status (default 'pending', after changed  make it 'updated')
 
 #### Step 2: Edit the CSV
 
@@ -84,7 +90,7 @@ Open `./data/metadata.csv` in your favorite spreadsheet editor (Excel, Google Sh
 1. Review the current metadata
 2. Edit the `new_description` column with updated descriptions
 3. Edit the `new_file_path` column if file paths changed
-4. Update the `status` column as needed
+4. Update the `status` column as needed (as 'updated' instead of 'pending')
 
 Example:
 ```
@@ -104,15 +110,11 @@ This generates JSON files in `./data/json_output/` organized by DOI.
 #### Step 4: Push to Dataverse (Optional)
 
 ```bash
-# Set your credentials
-export DATAVERSE_SERVER_URL="https://your-dataverse.org"
-export DATAVERSE_API_TOKEN="your-api-token"
-
 # First, do a dry run to preview changes
-python dataverse_api.py --csv-file ./data/metadata.csv
+python dataverse_api2.py --json-folder "Folder Path" --server-url "https://demo.borealisdata.ca/" --api-token "YOUR API TOKEN"
 
 # Apply changes to Dataverse
-python dataverse_api.py --csv-file ./data/metadata.csv --no-dry-run
+python dataverse_api2.py --json-folder "Folder Path" --server-url "https://demo.borealisdata.ca/" --api-token "YOUR API TOKEN" --no-dry-run
 ```
 
 ## Detailed Usage
@@ -153,8 +155,8 @@ python csv_to_json.py \
 #### Dry Run Mode (Recommended First)
 
 ```bash
-python dataverse_api.py \
-    --csv-file ./data/metadata.csv \
+python dataverse_api2.py \
+    --json-folder "Folder Path" \
     --server-url "https://your-dataverse.org" \
     --api-token "your-api-token"
 ```
@@ -164,14 +166,14 @@ This shows what changes would be made without actually applying them.
 #### Apply Changes
 
 ```bash
-python dataverse_api.py \
-    --csv-file ./data/metadata.csv \
+python dataverse_api2.py \
+    --json-folder "Folder Path" \
     --server-url "https://your-dataverse.org" \
     --api-token "your-api-token" \
     --no-dry-run
 ```
 
-#### Using Environment Variables (More Secure)
+#### Using Environment Variables (More Secure - no need if you used --api-token and --server-url)
 
 ```bash
 export DATAVERSE_SERVER_URL="https://your-dataverse.org"
