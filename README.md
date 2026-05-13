@@ -1,4 +1,4 @@
-# Dataverse Bulk Metadata Update Tool
+# Dataverse Bulk File Metadata Update Tool
 
 A comprehensive solution for managing and updating file metadata across multiple datasets in Dataverse instances. This tool allows you to convert between JSON and CSV formats, manage multiple DOIs, and perform bulk metadata updates.
 
