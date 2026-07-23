@@ -103,7 +103,7 @@ def json_to_csv_converter(json_files: List[str], output_csv: str, dataset_names:
             json_data = load_json_file(json_file)
           
             #EXTRA 2 LINES
-            if "data" in json_data and isintance(json_data["data"],dict):
+            if "data" in json_data and isinstance(json_data["data"],dict):
               json_data = json_data["data"]
               
             # Extract DOI
