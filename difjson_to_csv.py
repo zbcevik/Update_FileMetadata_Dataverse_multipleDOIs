@@ -23,7 +23,7 @@ def extract_doi(json_data: Dict[str, Any]) -> str:
         if doi:
             return doi
     if "persistentUrl" in json_data and json_data["persistentUrl"]:
-        return json_data["persistentUrl"]
+        return json_data["persistentUrl"].replace("https://doi.org/", "doi:")
     if "identifier" in json_data and json_data["identifier"]:
         return json_data["identifier"]
     return ""
@@ -37,7 +37,7 @@ def extract_title_from_citation(json_data: Dict[str, Any]) -> str:
     if "title" in json_data and json_data["title"]:
         return json_data["title"]
 
-    dataset_version = json_data.get("datasetVersion")
+    dataset_version = json_data.get("datasetVersion") or json_data.get("latestVersion")
     if isinstance(dataset_version, dict):
         citation = dataset_version.get("metadataBlocks", {}).get("citation", {})
         fields = citation.get("fields") or []
@@ -59,10 +59,9 @@ def extract_title_from_citation(json_data: Dict[str, Any]) -> str:
 def extract_files(json_data: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Return file entries from either modern Dataverse or legacy JSON formats."""
     # Check datasetVersion.files first (nested structure from Dataverse API)
-    if "datasetVersion" in json_data and isinstance(json_data["datasetVersion"], dict):
-        dataset_version = json_data["datasetVersion"]
-        if "files" in dataset_version and isinstance(dataset_version["files"], list):
-            return dataset_version["files"]
+    dataset_version = json_data.get("datasetVersion") or json_data.get("latestVersion")
+    if isinstance(dataset_version, dict):
+        return dataset_version.get("files", [])
     
     # Check top-level data/files
     if "data" in json_data and isinstance(json_data["data"], list):
