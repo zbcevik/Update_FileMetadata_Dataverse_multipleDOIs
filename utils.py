@@ -19,8 +19,12 @@ def load_json_file(filepath: str) -> Dict[str, Any]:
     Returns:
         Dictionary containing the JSON data
     """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    try:
+        with open(csv_file, "r", encoding="utf-8-sig", newline="") as f:
+            return list(csv.DictReader(f))
+    except UnicodeDecodeError:
+        with open(csv_file, "r", encoding="cp1252", newline="") as f:
+            return list(csv.DictReader(f))
 
 
 def save_json_file(data: Dict[str, Any], filepath: str, indent: int = 2) -> None:
