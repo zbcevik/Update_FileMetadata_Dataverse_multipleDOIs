@@ -1,75 +1,27 @@
-# Git ignore file for Dataverse Bulk Metadata Update
-
-# Virtual environment
-venv/
-ENV/
-env/
-.venv
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-.project
-.pydevproject
-.settings/
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# Data files (keep git history clean)
-data/json_output/*.json
-data/test_*.csv
-backups/
-logs/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Credentials (NEVER COMMIT)
+# Local configuration and credentials
+config.ini
 config.local.ini
+.env
+.env.*
 *.key
 *.pem
 *.secret
-
-# IDE specific files
-.vscode/settings.json
-.idea/
-
-# Test outputs
+# User data and generated output (dummy templates remain tracked)
+data/*.csv
+data/json_templates/*.json
+!data/json_templates/example_*.json
+backups/
+logs/
+# Python and editor files
+venv/
+.venv/
+__pycache__/
+*.py[cod]
 .pytest_cache/
 .coverage
 htmlcov/
-
-# Temporary files
+.DS_Store
+.vscode/
+.idea/
 *.tmp
 *.bak
-*.orig

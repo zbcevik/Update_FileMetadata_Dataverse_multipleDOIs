@@ -1,366 +1,100 @@
-# Dataverse Bulk File Metadata Update Tool
+# Dataverse bulk file metadata updates
 
-A comprehensive solution for managing and updating file metadata across multiple datasets in Dataverse instances. This tool allows you to convert between JSON and CSV formats, manage multiple DOIs, and perform bulk metadata updates.
+Update file descriptions and folder labels across multiple datasets using one spreadsheet.
 
-## Features
+**Dataset JSON files → CSV → edit → preview → apply**
 
-✨ **Multi-Dataset Support**: Handle multiple datasets with different DOIs in a single workflow
+This tool changes file metadata, not file contents. It does not publish datasets.
 
-📊 **CSV-Based Updates**: Edit metadata in a familiar spreadsheet format
+## Install and configure
 
-🔄 **Bidirectional Conversion**: Convert between JSON and CSV formats seamlessly
+Requires Python 3.9 or later.
 
-🚀 **Bulk Operations**: Update metadata for multiple files across datasets at once
-
-🔐 **API Integration**: Direct integration with Dataverse API for secure updates
-
-📋 **Dry-Run Mode**: Preview changes before applying them to your datasets
-
-📦 **Template System**: Work with JSON templates organized in convenient folder structure
-
-🎯 **Tracking**: Track update status and changes for each file
-
-## Project Structure
-
-```
-Update_FileMetadata_Dataverse_multipleDOIs/
-├── utils.py                          # Utility functions for JSON/CSV operations
-├── json_to_csv.py                    # Convert JSON files to CSV format
-├── csv_to_json.py                    # Convert updated CSV back to JSON files
-├── dataverse_api.py                  # Dataverse API interface for pushing updates
-├── config.ini                        # Configuration file for settings
-├── README.md                         # This file
-├── WORKFLOW.md                       # Detailed workflow documentation
-├── INSTALLATION.md                   # Installation and setup guide
-├── data/
-│   ├── json_templates/              # JSON template files for your datasets
-│   │   ├── climate_data_2024.json
-│   │   ├── genomic_data_species_a.json
-│   │   └── survey_data_2024.json
-│   ├── json_output/                 # Generated JSON files (after CSV updates)
-│   └── metadata.csv                 # Main metadata file for editing
-├── backups/                          # Automatic backups of original files
-└── logs/                             # Operation logs
-
-```
-
-## Quick Start
-
-### 1. Installation
+The repository includes `config.sample.ini` as a configuration template. Copy it to `config.ini`, then enter your settings and API token in that local copy. Your private `config.ini` should not be uploaded to GitHub.
 
 ```bash
-# Clone or download the repository
-cd Update_FileMetadata_Dataverse_multipleDOIs
-
-# Install dependencies
-pip install requests
-
-# (Optional) Create a virtual environment first
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install requests
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+cp config.sample.ini config.ini
 ```
 
-### 2. Basic Workflow
+On Windows, activate with `.venv\Scripts\activate` and copy the configuration using your file manager.
 
-#### Step 1: Convert JSON to CSV
+Edit `config.ini` to set your Dataverse HTTPS server URL, API token, JSON input directory, and CSV location. Paths are relative to the configuration file. Local configuration and generated CSV files are ignored by Git. Use a dedicated input directory for your own metadata; the bundled examples are fictional and must not be applied to a server.
+
+## 1. Create the spreadsheet
+
+Obtain dataset JSON exports from your Dataverse instance and place them in the configured input directory (one JSON file per dataset). This tool does not download exports.
 
 ```bash
-# Convert all JSON templates to CSV
-python json_to_csv.py --input-dir ./data/json_templates --output-csv ./data/metadata.csv
+python json_to_csv.py
 ```
 
-This creates a CSV with columns:
-- `DOI` - Dataset identifier
-- `dataset_name` - Name of the dataset
-- `file_id` - Unique file identifier
-- `file_label` - File name/label
-- `file_description` - Current description
-- `file_path` - Current directory path
-- `file_size` - File size in bytes
-- `original_description` - Original description (for reference)
-- `new_description` - Update this column with new description
-- `new_file_path` - Update this column with new file path
-- `status` - Track update status (default 'pending', after changed  make it 'updated')
+Supported structures: flat `data` or `files` lists; `datasetVersion.files`; `latestVersion.files`; and dataset objects wrapped in an API `data` response. Nested `dataFile` objects are supported. A complete dataset DOI and positive numeric file IDs are required. Duplicate file IDs or invalid input stop conversion without producing a partial CSV.
 
-#### Step 2: Edit the CSV
+An existing spreadsheet is protected against accidental replacement. To deliberately regenerate it after saving your edits elsewhere, use `python json_to_csv.py --overwrite`.
 
-Open `./data/metadata.csv` in your favorite spreadsheet editor (Excel, Google Sheets, etc.):
+## 2. Edit the spreadsheet
 
-1. Review the current metadata
-2. Edit the `new_description` column with updated descriptions
-3. Edit the `new_file_path` column if file paths changed
-4. Update the `status` column as needed (as 'updated' instead of 'pending')
-
-Example:
-```
-DOI                           | dataset_name | file_id | ... | original_description | new_description | status
-doi:10.5061/dryad.example1   | Climate Data | file_001| ... | Old description     | Updated desc    | pending
-```
-
-#### Step 3: Convert CSV to JSON
-
-```bash
-# Convert your updated CSV back to JSON format
-python csv_to_json.py --csv-file ./data/metadata.csv --output-dir ./data/json_output
-```
-
-This generates JSON files in `./data/json_output/` organized by DOI.
-
-#### Step 4: Push to Dataverse (Optional)
-
-```bash
-# First, do a dry run to preview changes
-python dataverse_api2.py --json-folder "Folder Path" --server-url "https://demo.borealisdata.ca/" --api-token "YOUR API TOKEN"
-
-# Apply changes to Dataverse
-python dataverse_api2.py --json-folder "Folder Path" --server-url "https://demo.borealisdata.ca/" --api-token "YOUR API TOKEN" --no-dry-run
-```
-
-## Detailed Usage
-
-### JSON to CSV Conversion
-
-Convert one or more JSON files to CSV format:
-
-```bash
-# Convert all JSON files in directory
-python json_to_csv.py \
-    --input-dir ./data/json_templates \
-    --output-csv ./data/metadata.csv
-
-# Convert a single JSON file
-python json_to_csv.py \
-    --json-file ./data/json_templates/climate_data_2024.json \
-    --output-csv ./data/single_dataset.csv
-```
-
-### CSV to JSON Conversion
-
-Convert your edited CSV back to JSON files:
-
-```bash
-python csv_to_json.py \
-    --csv-file ./data/metadata.csv \
-    --output-dir ./data/json_output
-```
-
-### Push Updates to Dataverse
-
-#### Prerequisites
-- Dataverse instance with API access
-- Valid API token with appropriate permissions
-- Dataverse server URL
-
-#### Dry Run Mode (Recommended First)
-
-```bash
-python dataverse_api2.py \
-    --json-folder "Folder Path" \
-    --server-url "https://your-dataverse.org" \
-    --api-token "your-api-token"
-```
-
-This shows what changes would be made without actually applying them.
-
-#### Apply Changes
-
-```bash
-python dataverse_api2.py \
-    --json-folder "Folder Path" \
-    --server-url "https://your-dataverse.org" \
-    --api-token "your-api-token" \
-    --no-dry-run
-```
-
-#### Using Environment Variables (More Secure - no need if you used --api-token and --server-url)
-
-```bash
-export DATAVERSE_SERVER_URL="https://your-dataverse.org"
-export DATAVERSE_API_TOKEN="your-api-token"
-
-python dataverse_api.py --csv-file ./data/metadata.csv --no-dry-run
-```
-
-## JSON Template Format
-
-Each JSON file should follow this structure:
-
-```json
-{
-  "datasetPersistentId": "doi:10.5061/dryad.example",
-  "datasetName": "Your Dataset Name",
-  "dataset": {
-    "version": 1,
-    "releaseTime": "2024-01-15T10:00:00Z"
-  },
-  "data": [
-    {
-      "id": "file_001",
-      "label": "filename.ext",
-      "description": "File description",
-      "directoryLabel": "folder_path",
-      "filesize": 1024576,
-      "dataType": "Text"
-    }
-  ],
-  "lastUpdated": "2024-01-15T10:00:00Z"
-}
-```
-
-### Key Fields
-
-- `datasetPersistentId`: The DOI of your dataset (required)
-- `datasetName`: Human-readable name of the dataset
-- `data`: Array of file objects
-  - `id`: Unique file identifier from Dataverse
-  - `label`: File name or label
-  - `description`: File description
-  - `directoryLabel`: Directory path within the dataset
-  - `filesize`: Size in bytes
-  - `dataType`: File type (Text, Spreadsheet, Document, Sequence, etc.)
-
-## CSV Work Columns
-
-After converting JSON to CSV, you'll see these working columns:
+Open the configured CSV in Excel or another spreadsheet editor. Save it as UTF-8 CSV.
 
 | Column | Purpose |
-|--------|---------|
-| `DOI` | Dataset identifier (read-only) |
-| `dataset_name` | Dataset name (read-only) |
-| `file_id` | File ID (read-only) |
-| `file_label` | File name (read-only) |
-| `file_description` | Current description (read-only) |
-| `original_description` | Reference copy (read-only) |
-| `new_description` | **EDIT THIS** - New file description |
-| `new_file_path` | **EDIT THIS** - New directory path |
-| `status` | Update status tracking |
+| --- | --- |
+| DOI, dataset_name | Dataset identity and title |
+| file_id, file_label | File identity and name |
+| original_description, file_path | Existing description and folder label |
+| file_size, content_type, restricted, categories | Reference information |
+| new_description | Enter a replacement description |
+| new_file_path | Enter a replacement Dataverse folder label |
 
-## Status Values
+Edit only the two `new_` columns. Blank or whitespace-only cells mean **leave unchanged**; clearing a field is not supported. There is no status column. Remove rows or leave the new columns blank to exclude files. A nonblank value is an update request even if it matches the original.
 
-- `pending` - Changes ready to be applied
-- `updated` - Changes successfully applied
-- `no_changes` - No updates needed
-- `error` - Error during update
-- `skipped` - Update skipped
+## 3. Preview, then apply
 
-## Configuration
+```bash
+python dataverse_api.py
+```
 
-Edit `config.ini` to customize settings:
+Preview runs offline, requires no token, and displays only requested changes.
+
+To apply, enter a token with permission to edit the datasets in your local `config.ini`:
 
 ```ini
 [dataverse]
-server_url = https://your-dataverse.org
-api_token = ${DATAVERSE_API_TOKEN}
-
-[paths]
-json_input_dir = ./data/json_templates
-json_output_dir = ./data/json_output
-csv_file = ./data/metadata.csv
+server_url = https://your-dataverse.example.org
+api_token = YOUR_TOKEN
 ```
 
-## Examples
+Keep the real token only in your local configuration, which is ignored by Git. If `DATAVERSE_API_TOKEN` is set in your environment, it overrides the configuration token. Use `unset DATAVERSE_API_TOKEN` in Bash to use the configuration token instead.
 
-### Example 1: Update File Descriptions
+```bash
+python dataverse_api.py --apply
+```
 
-1. Generate CSV from JSON files
-2. Edit `new_description` column with better descriptions
-3. Convert back to JSON
-4. Push to Dataverse
+The uploader verifies each file belongs to the stated DOI's latest version and fetches current metadata before writing. It preserves existing categories, restriction settings, and other returned metadata while changing the requested description or folder label. The script reads updates directly from the CSV; the original JSON files are not modified. API requests use multipart `jsonData`, HTTPS, a timeout, and no redirects. Both JSON success responses and Dataverse's plain-text “File Metadata update has been completed” confirmation are supported. All files are checked before the first write.
 
-### Example 2: Reorganize File Paths
+Updates are sequential, not transactional. If a request fails, processing stops and reports how many updates were confirmed. Check the draft in Dataverse before retrying, especially after a timeout or an unexpected response. Clear both `new_` cells for files already updated successfully, then preview and apply the remaining changes. Avoid concurrent metadata editing while this tool runs. Review the resulting draft in Dataverse and publish it separately if appropriate.
 
-1. Generate CSV from JSON files
-2. Edit `new_file_path` column to reorganize files
-3. Convert back to JSON
-4. Push to Dataverse
+Both scripts accept `--config path/to/config.ini` and `--help`.
 
-### Example 3: Bulk Updates Across Multiple Datasets
+## Examples and troubleshooting
 
-1. Generate CSV from all JSON templates
-2. Edit multiple datasets in one spreadsheet
-3. Convert back to multiple JSON files
-4. Push all updates with single command
+Two fictional datasets are included in `data/json_templates/`, including a wrapped nested export. Generate the CSV and enter a description to try the offline preview. Never apply dummy IDs.
 
-## Troubleshooting
+- Missing configuration: copy `config.sample.ini` to `config.ini`.
+- No JSON files: check `json_input_dir`.
+- Existing CSV: preserve your edits before using `--overwrite`.
+- Invalid JSON/CSV: check JSON syntax and save spreadsheets as UTF-8 CSV.
+- HTTP errors: check the server URL, token permissions, and installation's API support.
 
-### Issue: "No JSON files found"
-- **Solution**: Ensure JSON files are in `./data/json_templates` or specify correct path with `--input-dir`
+The request implementation follows the [Dataverse Native API documentation](https://guides.dataverse.org/en/latest/api/native-api.html#updating-file-metadata). Validate it against a test Dataverse instance before production use; server versions can differ.
 
-### Issue: "CSV file not found"
-- **Solution**: Ensure the CSV file path is correct and the file exists
+## Repository files
 
-### Issue: "Failed to connect to Dataverse"
-- **Solution**: Check server URL and API token. Ensure server is accessible.
-
-### Issue: "Status 401: Unauthorized"
-- **Solution**: API token is invalid. Generate new token in your Dataverse account settings.
-
-## Best Practices
-
-1. **Always do a dry run first**: Review changes before applying
-2. **Keep backups**: Original JSON files are preserved in `json_templates` directory
-3. **Test with one dataset**: Before bulk updating, test with a single dataset
-4. **Use version control**: Track your CSV changes with Git
-5. **Log API token**: Set via environment variable, never hardcode
-6. **Validate data**: Review CSV data before converting to JSON
-7. **Document changes**: Update status column to track what was done
-
-## Security Considerations
-
-- **Never commit API tokens**: Use environment variables
-- **Protect CSV files**: They contain file metadata which might be sensitive
-- **Use HTTPS**: Ensure Dataverse connection is encrypted
-- **Limit permissions**: Give API token only necessary permissions
-- **Audit logs**: Enable logging to track all changes
-
-## API Reference
-
-### `utils.py`
-- `load_json_file()` - Load JSON file
-- `save_json_file()` - Save JSON file
-- `load_csv_file()` - Load CSV file
-- `save_csv_file()` - Save CSV file
-- `extract_metadata_from_json()` - Extract metadata
-- `validate_csv_row()` - Validate CSV row
-- `get_json_files_from_directory()` - Get all JSON files from directory
-
-### `json_to_csv.py`
-- `json_to_csv_converter()` - Main conversion function
-
-### `csv_to_json.py`
-- `csv_to_json_converter()` - Main conversion function
-
-### `dataverse_api.py`
-- `DataverseAPI` - Dataverse API client class
-- `push_updates_from_csv()` - Push updates to Dataverse
-
-## Requirements
-
-- Python 3.7+
-- requests library (`pip install requests`)
-
-## License
-
-See LICENSE file for license information.
-
-## Support
-
-For issues or questions:
-1. Check the TROUBLESHOOTING section above
-2. Review WORKFLOW.md for detailed workflow documentation
-3. Check INSTALLATION.md for setup help
-4. Review log files in `./logs` for error details
-
-## Contributing
-
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## Version History
-
-- **v1.0** - Initial release with multi-DOI bulk update support
+- `json_to_csv.py`: the single converter.
+- `dataverse_api.py`: offline preview and API uploader.
+- `utils.py`: configuration and file helpers.
+- `config.sample.ini`: public configuration template.
+- `data/json_templates/`: fictional sample inputs.
+- `LICENSE`: MIT license.

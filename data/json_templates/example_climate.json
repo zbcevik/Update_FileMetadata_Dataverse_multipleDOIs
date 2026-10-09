@@ -1,0 +1,18 @@
+{
+  "datasetPersistentId": "doi:10.0000/EXAMPLE1",
+  "datasetName": "Fictional climate dataset",
+  "data": [
+    {
+      "id": 100001,
+      "label": "temperatures.csv",
+      "description": "Fictional monthly temperatures",
+      "directoryLabel": "raw",
+      "categories": [
+        "Data"
+      ],
+      "restricted": false,
+      "filesize": 100,
+      "contentType": "text/csv"
+    }
+  ]
+}

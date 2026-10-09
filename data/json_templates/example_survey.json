@@ -1,0 +1,36 @@
+{
+  "status": "OK",
+  "data": {
+    "persistentUrl": "https://doi.org/10.0000/EXAMPLE2",
+    "latestVersion": {
+      "metadataBlocks": {
+        "citation": {
+          "fields": [
+            {
+              "typeName": "title",
+              "value": "Fictional survey dataset"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "label": "responses.csv",
+          "description": "Invented survey responses",
+          "directoryLabel": "survey",
+          "categories": [
+            "Data",
+            "Example"
+          ],
+          "restricted": true,
+          "dataFile": {
+            "id": 100002,
+            "filename": "responses.csv",
+            "filesize": 200,
+            "contentType": "text/csv"
+          }
+        }
+      ]
+    }
+  }
+}

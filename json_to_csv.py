@@ -1,212 +1,88 @@
-"""
-Convert JSON files to CSV format
-Generates CSV with DOI, dataset name, and file metadata columns
-"""
-
-import os
-import sys
+"""Combine Dataverse dataset JSON files into one editable CSV."""
 import argparse
-from typing import List, Dict, Any
-from utils import (
-    load_json_file,
-    save_csv_file,
-    get_json_files_from_directory
-)
+from pathlib import Path
+from utils import load_config, load_json_file, save_csv_file
+
+COLUMNS = ["DOI", "dataset_name", "file_id", "file_label", "original_description",
+           "file_path", "file_size", "content_type", "restricted", "categories",
+           "new_description", "new_file_path"]
 
 
-def extract_doi(json_data: Dict[str, Any]) -> str:
-    """Extract a DOI from common Dataverse JSON field names."""
-    if "datasetPersistentId" in json_data and json_data["datasetPersistentId"]:
-        return json_data["datasetPersistentId"]
-    if "datasetVersion" in json_data and isinstance(json_data["datasetVersion"], dict):
-        doi = json_data["datasetVersion"].get("datasetPersistentId", "")
-        if doi:
-            return doi
-    if "persistentUrl" in json_data and json_data["persistentUrl"]:
-        return json_data["persistentUrl"]
-    if "identifier" in json_data and json_data["identifier"]:
-        return json_data["identifier"]
-    return ""
+def normalize_doi(value):
+    value = str(value).strip()
+    for prefix in ("https://doi.org/", "http://doi.org/"):
+        if value.startswith(prefix):
+            value = value[len(prefix):]
+    return value if value.startswith("doi:") else "doi:" + value
 
 
-def extract_title_from_citation(json_data: Dict[str, Any]) -> str:
-    """Extract dataset title from nested citation metadata."""
-    if "datasetName" in json_data and json_data["datasetName"]:
-        return json_data["datasetName"]
-
-    if "title" in json_data and json_data["title"]:
-        return json_data["title"]
-
-    dataset_version = json_data.get("datasetVersion")
-    if isinstance(dataset_version, dict):
-        citation = dataset_version.get("metadataBlocks", {}).get("citation", {})
-        fields = citation.get("fields") or []
-        for field in fields:
-            if field.get("typeName") == "title":
-                value = field.get("value")
-                if isinstance(value, str):
-                    return value
-                if isinstance(value, dict):
-                    return value.get("value", "")
-                if isinstance(value, list) and value:
-                    first = value[0]
-                    if isinstance(first, dict):
-                        return first.get("value", "")
-                    return str(first)
-    return "Unknown Dataset"
-
-
-def extract_files(json_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Return file entries from either modern Dataverse or legacy JSON formats."""
-    # Check datasetVersion.files first (nested structure from Dataverse API)
-    if "datasetVersion" in json_data and isinstance(json_data["datasetVersion"], dict):
-        dataset_version = json_data["datasetVersion"]
-        if "files" in dataset_version and isinstance(dataset_version["files"], list):
-            return dataset_version["files"]
-    
-    # Check top-level data/files
-    if "data" in json_data and isinstance(json_data["data"], list):
-        return json_data["data"]
-    if "files" in json_data and isinstance(json_data["files"], list):
-        return json_data["files"]
-    return []
+def dataset_rows(payload):
+    if isinstance(payload.get("data"), dict):
+        payload = payload["data"]
+    version = payload.get("latestVersion") or payload.get("datasetVersion") or {}
+    doi = payload.get("datasetPersistentId") or version.get("datasetPersistentId") or payload.get("persistentUrl")
+    if not doi and payload.get("authority") and payload.get("identifier"):
+        doi = f"{payload['authority']}/{payload['identifier']}"
+    if not doi:
+        raise ValueError("Dataset has no complete DOI")
+    doi = normalize_doi(doi)
+    if not doi.startswith("doi:10.") or "/" not in doi:
+        raise ValueError("Dataset DOI must contain an authority and identifier")
+    title = payload.get("datasetName") or payload.get("title")
+    if not title:
+        fields = version.get("metadataBlocks", {}).get("citation", {}).get("fields", [])
+        title = next((f.get("value") for f in fields if f.get("typeName") == "title"), "Unknown Dataset")
+    entries = version.get("files")
+    if entries is None:
+        entries = payload.get("files", payload.get("data", []))
+    if not isinstance(entries, list):
+        raise ValueError("Dataset files must be a list")
+    rows = []
+    for entry in entries:
+        data_file = entry.get("dataFile", entry)
+        file_id = str(data_file.get("id", ""))
+        if not file_id.isascii() or not file_id.isdigit() or int(file_id) < 1:
+            raise ValueError("Every file must have a positive numeric file ID")
+        rows.append(dict(zip(COLUMNS, [doi, title, file_id,
+            entry.get("label") or data_file.get("filename", ""),
+            entry.get("description", ""), entry.get("directoryLabel", ""),
+            data_file.get("filesize", ""), data_file.get("contentType", data_file.get("dataType", "")),
+            entry.get("restricted", False), ", ".join(entry.get("categories") or []), "", ""])))
+    return rows
 
 
-def get_file_info(file_info: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize file metadata from both `data` and `files` JSON structures."""
-    data_file = file_info.get("dataFile") if isinstance(file_info.get("dataFile"), dict) else file_info
-    return {
-        "id": data_file.get("id", ""),
-        "label": file_info.get("label", "") or data_file.get("filename", ""),
-        "description": file_info.get("description", ""),
-        "directoryLabel": file_info.get("directoryLabel", ""),
-        "filesize": data_file.get("filesize", ""),
-        "dataType": data_file.get("dataType", data_file.get("contentType", ""))
-    }
-
-
-def json_to_csv_converter(json_files: List[str], output_csv: str, dataset_names: Dict[str, str] = None) -> None:
-    """
-    Convert multiple JSON files to a single CSV file
-    
-    Args:
-        json_files: List of paths to JSON files
-        output_csv: Output CSV file path
-        dataset_names: Optional dictionary mapping DOI to dataset name
-    """
-    csv_rows = []
-    dataset_names = dataset_names or {}
-    
-    for json_file in json_files:
+def convert(input_dir, output_csv, overwrite=False):
+    paths = sorted(p for p in Path(input_dir).glob("*") if p.is_file() and p.suffix.lower() == ".json")
+    if not paths:
+        raise ValueError("No JSON files found in input directory")
+    if Path(output_csv).exists() and not overwrite:
+        raise ValueError("Output CSV already exists; use --overwrite only after saving your edits elsewhere")
+    rows = []
+    seen = set()
+    for path in paths:
         try:
-            print(f"Processing: {json_file}")
-            json_data = load_json_file(json_file)
-            
-            # Extract DOI
-            doi = extract_doi(json_data)
-            if not doi:
-                print(f"  Warning: No DOI found in {json_file}")
-                continue
-            
-            # Get dataset name
-            dataset_name = dataset_names.get(doi) or extract_title_from_citation(json_data)
-            
-            # Extract file information
-            files = extract_files(json_data)
-            
-            for file_info in files:
-                normalized = get_file_info(file_info)
-                row = {
-                    "DOI": doi,
-                    "dataset_name": dataset_name,
-                    "file_id": normalized.get("id", ""),
-                    "file_label": normalized.get("label", ""),
-                    "file_description": normalized.get("description", ""),
-                    "file_path": normalized.get("directoryLabel", ""),
-                    "file_size": str(normalized.get("filesize", "")),
-                    "original_description": normalized.get("description", ""),
-                    "new_description": "",
-                    "new_file_path": "",
-                    "status": "pending"
-                }
-                csv_rows.append(row)
-            
-            # If no files, still create a row for dataset metadata
-            if not files:
-                row = {
-                    "DOI": doi,
-                    "dataset_name": dataset_name,
-                    "file_id": "",
-                    "file_label": "",
-                    "file_description": "",
-                    "file_path": "",
-                    "file_size": "",
-                    "original_description": "",
-                    "new_description": "",
-                    "new_file_path": "",
-                    "status": "no_files"
-                }
-                csv_rows.append(row)
-        
-        except Exception as e:
-            print(f"  Error processing {json_file}: {str(e)}")
-            continue
-    
-    if csv_rows:
-        fieldnames = [
-            "DOI",
-            "dataset_name",
-            "file_id",
-            "file_label",
-            "file_description",
-            "file_path",
-            "file_size",
-            "original_description",
-            "new_description",
-            "new_file_path",
-            "status"
-        ]
-        save_csv_file(csv_rows, output_csv, fieldnames)
-        print(f"\nSuccessfully converted {len(csv_rows)} rows to {output_csv}")
-    else:
-        print("No data to convert")
+            extracted = dataset_rows(load_json_file(path))
+        except (ValueError, TypeError, AttributeError) as error:
+            raise ValueError(f"{path.name}: {error}") from error
+        for row in extracted:
+            if row["file_id"] in seen:
+                raise ValueError(f"Duplicate file ID: {row['file_id']}")
+            seen.add(row["file_id"])
+        rows.extend(extracted)
+    save_csv_file(rows, output_csv, COLUMNS)
+    print(f"Created {output_csv}: {len(rows)} files from {len(paths)} datasets")
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Convert JSON metadata files to CSV format"
-    )
-    parser.add_argument(
-        "--input-dir",
-        type=str,
-        default="./data/json_templates",
-        help="Directory containing JSON files (default: ./data/json_templates)"
-    )
-    parser.add_argument(
-        "--output-csv",
-        type=str,
-        default="./data/metadata.csv",
-        help="Output CSV file path (default: ./data/metadata.csv)"
-    )
-    parser.add_argument(
-        "--json-file",
-        type=str,
-        help="Single JSON file to convert (alternative to --input-dir)"
-    )
-    
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", default="config.ini")
+    parser.add_argument("--overwrite", action="store_true", help="Replace an existing CSV")
     args = parser.parse_args()
-    
-    # Determine which files to process
-    if args.json_file:
-        json_files = [args.json_file]
-    else:
-        json_files = get_json_files_from_directory(args.input_dir)
-    
-    if not json_files:
-        print(f"No JSON files found in {args.input_dir}")
-        sys.exit(1)
-    
-    json_to_csv_converter(json_files, args.output_csv)
+    try:
+        config = load_config(args.config)
+        convert(config["paths"]["json_input_dir"], config["paths"]["csv_file"], args.overwrite)
+    except (OSError, ValueError) as error:
+        parser.exit(1, f"Error: {error}\n")
 
 
 if __name__ == "__main__":
